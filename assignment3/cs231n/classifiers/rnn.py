@@ -142,7 +142,24 @@ class CaptioningRNN(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        # forward prop
+        h0, aff_cache = affine_forward(features, W_proj, b_proj)
+        out, embed_cache = word_embedding_forward(captions_in, W_embed)
+        if self.cell_type == 'rnn':
+            h, rnn_cache = rnn_forward(out, h0, Wx, Wh, b)
+        else:
+            h, lstm_cache = lstm_forward(out, h0, Wx, Wh, b)
+        yout, y_cache = temporal_affine_forward(h, W_vocab, b_vocab)
+        loss, dh = temporal_softmax_loss(yout, captions_out, mask)
+
+        # back prop
+        dh, grads['W_vocab'], grads['b_vocab'] = temporal_affine_backward(dh, y_cache)
+        if self.cell_type == 'rnn':
+            dx, dh0, grads['Wx'], grads['Wh'], grads['b'] = rnn_backward(dh, rnn_cache)
+        else:
+            dx, dh0, grads['Wx'], grads['Wh'], grads['b'] = lstm_backward(dh, lstm_cache)
+        grads['W_embed'] = word_embedding_backward(dx, embed_cache)
+        _, grads['W_proj'], grads['b_proj'] = affine_backward(dh0, aff_cache)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -211,7 +228,26 @@ class CaptioningRNN(object):
         ###########################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        pre_word = np.array([self._start] * N)
+        prev_h, _ = affine_forward(features, W_proj, b_proj)
+        H = prev_h.shape[1]
+
+        if self.cell_type == 'lstm':
+            prev_c = np.zeros((N, H))
+        
+        hout = np.zeros((N, max_length, H))
+        for i in range(max_length):
+            out, _ = word_embedding_forward(pre_word, W_embed)
+            if self.cell_type == 'rnn':
+                prev_h, _ = rnn_step_forward(out, prev_h, Wx, Wh, b)
+            else:
+                prev_h, prev_c, _ = lstm_step_forward(out, prev_h, prev_c, Wx, Wh, b)
+            hout[:, i, :] = prev_h
+            vout, _ = temporal_affine_forward(hout, W_vocab, b_vocab)
+            vout_idx = np.argmax(vout, axis=2)
+            for j in range(N):
+                captions[j, i] = vout_idx[j, i]
+            pre_word = vout_idx[:, i].reshape(N)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################

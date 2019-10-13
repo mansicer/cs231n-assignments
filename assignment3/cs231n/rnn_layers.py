@@ -111,7 +111,17 @@ def rnn_forward(x, h0, Wx, Wh, b):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    N, T, D = x.shape
+    _, H = h0.shape
+
+    h = np.zeros((N, T, H))
+    cache = []
+    prev_h = h0
+    for i in range(T):
+        next_h, cc = rnn_step_forward(x[:, i, :], prev_h, Wx, Wh, b)
+        cache.append(cc)
+        h[:, i, :] = next_h
+        prev_h = next_h
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -147,7 +157,25 @@ def rnn_backward(dh, cache):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    D = cache[0][0].shape[1]
+    N, T, H = dh.shape
+    
+    dx = np.zeros((N, T, D))
+    dh0 = np.zeros((N, H))
+    dWx = np.zeros((D, H))
+    dWh = np.zeros((H, H))
+    db = np.zeros(H)
+
+    dprev_h = np.zeros((N, H))
+
+    for i in reversed(range(T)):
+        dx_, dprev_h, dWx_, dWh_, db_ = rnn_step_backward(dh[:, i, :] + dprev_h, cache[i])
+        dx[:, i, :] += dx_
+        dWx += dWx_
+        dWh += dWh_
+        db += db_
+
+    dh0 = dprev_h
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -179,7 +207,8 @@ def word_embedding_forward(x, W):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    out = W[x]
+    cache = (x, W)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -212,7 +241,11 @@ def word_embedding_backward(dout, cache):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    N, T, D = dout.shape
+    x, W = cache
+
+    dW = np.zeros_like(W)
+    np.add.at(dW, x, dout)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
